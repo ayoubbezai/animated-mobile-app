@@ -27,7 +27,7 @@ export default function StudentDashboard() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
-  const [isBlurred, setIsBlurred] = useState(false);
+  const [isBlurred, setIsBlurred] = useState(true);
 
   // Animation values
   const maxTranslate = 0;
@@ -36,10 +36,138 @@ export default function StudentDashboard() {
   const translateY = useRef(new Animated.Value(minTranslate)).current;
   const lastOffset = useRef(minTranslate);
 
+  // --- HERO ANIMATIONS ---
+  const heroLogoScale = useRef(new Animated.Value(0.7)).current;
+  const heroLogoOpacity = useRef(new Animated.Value(0)).current;
+  const brandOpacity = useRef(new Animated.Value(0)).current;
+  const taglineTranslateY = useRef(new Animated.Value(20)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const bookBtnScale = useRef(new Animated.Value(0.8)).current;
+  const bookBtnOpacity = useRef(new Animated.Value(0)).current;
+
+  // --- MODAL ANIMATIONS: STAT COUNT UP ---
+  const statHours = useRef(new Animated.Value(0)).current;
+  const statSessions = useRef(new Animated.Value(0)).current;
+  const statPayments = useRef(new Animated.Value(0)).current;
+  const [hoursValue, setHoursValue] = useState(0);
+  const [sessionsValue, setSessionsValue] = useState(0);
+  const [paymentsValue, setPaymentsValue] = useState(0);
+  const didAnimateStats = useRef(false);
+  const STAT_TARGETS = { hours: 12.5, sessions: 8, payments: 9400 };
+
+  // --- WEEKLY STUDY HOURS BAR ANIMATION ---
+  const weeklyValues = [4, 8, 6, 10, 7, 5, 3];
+  const barAnims = useRef(weeklyValues.map(() => new Animated.Value(0))).current;
+  // --- PREVIOUS SESSIONS CARD ANIMATION ---
+  const sessionCount = 3;
+  const sessionAnims = useRef(Array(sessionCount).fill(0).map(() => new Animated.Value(0))).current;
+
   useEffect(() => {
     const hour = new Date().getHours();
     setCurrentTime(hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening');
+
+    // Sequence: logo -> brand -> tagline -> button
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(heroLogoScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
+        Animated.timing(heroLogoOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.timing(brandOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(taglineTranslateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+        Animated.timing(taglineOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.spring(bookBtnScale, { toValue: 1, useNativeDriver: true, friction: 5 }),
+        Animated.timing(bookBtnOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]),
+    ]).start();
   }, []);
+
+  // Animate on first load
+  useEffect(() => {
+    if (!didAnimateStats.current) {
+      didAnimateStats.current = true;
+      Animated.timing(statHours, { toValue: STAT_TARGETS.hours, duration: 1800, useNativeDriver: false }).start();
+      Animated.timing(statSessions, { toValue: STAT_TARGETS.sessions, duration: 1800, useNativeDriver: false }).start();
+      Animated.timing(statPayments, { toValue: STAT_TARGETS.payments, duration: 1800, useNativeDriver: false }).start();
+    }
+  }, []);
+
+  // Animate again when modal is expanded, but do not reset to 0 when closed
+  useEffect(() => {
+    if (isExpanded) {
+      Animated.timing(statHours, { toValue: STAT_TARGETS.hours, duration: 1800, useNativeDriver: false }).start();
+      Animated.timing(statSessions, { toValue: STAT_TARGETS.sessions, duration: 1800, useNativeDriver: false }).start();
+      Animated.timing(statPayments, { toValue: STAT_TARGETS.payments, duration: 1800, useNativeDriver: false }).start();
+    }
+  }, [isExpanded]);
+
+  // Animate bars and session cards on first load
+  useEffect(() => {
+    // Bars
+    Animated.stagger(100, barAnims.map((anim, i) =>
+      Animated.timing(anim, {
+        toValue: weeklyValues[i],
+        duration: 900,
+        useNativeDriver: false,
+      })
+    )).start();
+    // Session cards
+    Animated.stagger(120, sessionAnims.map(anim =>
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    )).start();
+  }, []);
+
+  // Animate again when modal is expanded
+  useEffect(() => {
+    if (isExpanded) {
+      Animated.stagger(100, barAnims.map((anim, i) =>
+        Animated.timing(anim, {
+          toValue: weeklyValues[i],
+          duration: 900,
+          useNativeDriver: false,
+        })
+      )).start();
+      Animated.stagger(120, sessionAnims.map(anim =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        })
+      )).start();
+    } else {
+      // Reset bars and session cards to initial state when modal closes
+      barAnims.forEach(anim => anim.setValue(0));
+      sessionAnims.forEach(anim => anim.setValue(0));
+    }
+  }, [isExpanded]);
+
+  useEffect(() => {
+    const hoursListener = statHours.addListener(({ value }) => setHoursValue(value));
+    const sessionsListener = statSessions.addListener(({ value }) => setSessionsValue(value));
+    const paymentsListener = statPayments.addListener(({ value }) => setPaymentsValue(value));
+    return () => {
+      statHours.removeListener(hoursListener);
+      statSessions.removeListener(sessionsListener);
+      statPayments.removeListener(paymentsListener);
+    };
+  }, [statHours, statSessions, statPayments]);
+
+  // Book button press animation
+  const handleBookPress = () => {
+    Animated.sequence([
+      Animated.spring(bookBtnScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }),
+      Animated.spring(bookBtnScale, { toValue: 1, useNativeDriver: true, friction: 3 }),
+    ]).start();
+    // Optional: Haptic feedback
+    // Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Medium);
+    // TODO: Implement booking logic
+  };
 
   const toggleBlur = () => {
     setIsBlurred(!isBlurred);
@@ -99,7 +227,7 @@ export default function StudentDashboard() {
 
       {/* Video Background */}
       <View style={styles.videoContainer}>
-        <Animated.View style={{ opacity: videoOpacity }}>
+        <Animated.View style={{ opacity: videoOpacity  }}>
           <Video
             ref={videoRef}
             source={require('../../assets/videos/1.mp4')}
@@ -112,7 +240,7 @@ export default function StudentDashboard() {
           {isBlurred && (
             <BlurView
               style={styles.videoBlur}
-              intensity={20}
+              intensity={80}
               tint="dark"
             />
           )}
@@ -125,31 +253,40 @@ export default function StudentDashboard() {
         />
 
 <Animated.View style={[styles.heroLogoContainer, { opacity: videoOpacity }]}> 
-          <BlurView intensity={30} tint="light" style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/images/Group 1000004492.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </BlurView>
-          <View style={styles.brandContainer}>
-            <Text style={styles.brandWE}>WE</Text>
-            <Text style={styles.brandXPLAIN}>XPLAIN</Text>
-          </View>
-          <Text style={styles.heroTagline}>Empowering your learning journey</Text>
-          <TouchableOpacity style={styles.bookSessionBtnWrap} onPress={() => { /* TODO: Implement booking */ }} activeOpacity={0.85}>
-            <BlurView intensity={30} tint="light" style={styles.bookSessionBtnBlur}>
-              <LinearGradient
-                colors={[primary, '#FFB86C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.bookSessionBtnGradient}
-              >
-                <Text style={styles.bookSessionBtnText}>Book a Session</Text>
-              </LinearGradient>
-            </BlurView>
-          </TouchableOpacity>
-        </Animated.View>
+  <Animated.View style={{
+    transform: [{ scale: heroLogoScale }],
+    opacity: heroLogoOpacity,
+  }}>
+    <BlurView intensity={30} tint="light" style={styles.logoContainer}>
+      <Image
+        source={require('../../assets/images/Group 1000004492.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+    </BlurView>
+  </Animated.View>
+  <Animated.View style={{ opacity: brandOpacity }}>
+    <View style={styles.brandContainer}>
+      <Text style={styles.brandWE}>WE</Text>
+      <Text style={styles.brandXPLAIN}>XPLAIN</Text>
+    </View>
+  </Animated.View>
+  <Animated.Text style={[styles.heroTagline, { opacity: taglineOpacity, transform: [{ translateY: taglineTranslateY }] }]}>Empowering your learning journey</Animated.Text>
+  <Animated.View style={[styles.bookSessionBtnWrap, { opacity: bookBtnOpacity, transform: [{ scale: bookBtnScale }] }]}> 
+    <TouchableOpacity style={styles.bookSessionBtnWrap} onPress={handleBookPress} activeOpacity={0.85}>
+      <BlurView intensity={0} tint="light" style={styles.bookSessionBtnBlur}>
+        <LinearGradient
+          colors={[primary, '#FFB86C']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.bookSessionBtnGradient}
+        >
+          <Text style={styles.bookSessionBtnText}>Book a Session</Text>
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
+  </Animated.View>
+</Animated.View>
 
         {/* Top Bar */}
         <BlurView intensity={40} tint="dark" style={styles.topBar}>
@@ -206,7 +343,7 @@ export default function StudentDashboard() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="time-outline" size={20} color={primary} />
                 </View>
-                <Text style={styles.statNumber}>12.5</Text>
+                <Text style={styles.statNumber}>{hoursValue.toFixed(1)}</Text>
                 <Text style={styles.statLabel}>Total Hours</Text>
               </View>
               
@@ -215,7 +352,7 @@ export default function StudentDashboard() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="book-outline" size={20} color={primary} />
                 </View>
-                <Text style={styles.statNumber}>8</Text>
+                <Text style={styles.statNumber}>{sessionsValue.toFixed(0)}</Text>
                 <Text style={styles.statLabel}>Sessions</Text>
               </View>
               
@@ -224,7 +361,7 @@ export default function StudentDashboard() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="wallet-outline" size={20} color={primary} />
                 </View>
-                <Text style={styles.statNumber}>9400DA</Text>
+                <Text style={styles.statNumber}>{Math.round(paymentsValue)}DA</Text>
                 <Text style={styles.statLabel}>Payments</Text>
               </View>
             </View>
@@ -233,9 +370,12 @@ export default function StudentDashboard() {
             <View style={styles.graphContainer}>
               <Text style={styles.graphTitle}>Weekly Study Hours</Text>
               <View style={styles.graph}>
-                {[4, 8, 6, 10, 7, 5, 3].map((value, index) => (
+                {weeklyValues.map((value, index) => (
                   <View key={index} style={styles.graphBarContainer}>
-                    <View style={[styles.graphBar, { height: `${value * 8}%` }]} />
+                    <Animated.View style={[
+                      styles.graphBar,
+                      { height: barAnims[index].interpolate({ inputRange: [0, 10], outputRange: ['0%', `${value * 8}%`] }) }
+                    ]} />
                     <Text style={styles.graphLabel}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</Text>
                   </View>
                 ))}
@@ -268,19 +408,27 @@ export default function StudentDashboard() {
                   price: '2000 DA'
                 }
               ].map((session, index) => (
-                <View key={index} style={styles.sessionCard}>
-                  <View style={styles.sessionHeader}>
-                    <Text style={styles.sessionSubject}>{session.subject}</Text>
-                    <Text style={styles.sessionDate}>{session.date}</Text>
+                <Animated.View
+                  key={index}
+                  style={{
+                    opacity: sessionAnims[index],
+                    transform: [{ translateY: sessionAnims[index].interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+                  }}
+                >
+                  <View style={styles.sessionCard}>
+                    <View style={styles.sessionHeader}>
+                      <Text style={styles.sessionSubject}>{session.subject}</Text>
+                      <Text style={styles.sessionDate}>{session.date}</Text>
+                    </View>
+                    <Text style={styles.sessionDescription}>
+                      {session.description}
+                    </Text>
+                    <View style={styles.sessionFooter}>
+                      <Text style={styles.sessionHours}>{session.hours}</Text>
+                      <Text style={styles.sessionPrice}>{session.price}</Text>
+                    </View>
                   </View>
-                  <Text style={styles.sessionDescription}>
-                    {session.description}
-                  </Text>
-                  <View style={styles.sessionFooter}>
-                    <Text style={styles.sessionHours}>{session.hours}</Text>
-                    <Text style={styles.sessionPrice}>{session.price}</Text>
-                  </View>
-                </View>
+                </Animated.View>
               ))}
             </View>
           </ScrollView>
@@ -617,11 +765,12 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   logoContainer: {
-    width: width * 0.3, // Adjust as needed
-    height: width * 0.3, // Adjust as needed
+    width: width * 0.31, // Adjust as needed
+    height: width * 0.31, // Adjust as needed
     marginBottom: 10,
     borderRadius: 20,
     borderWidth: 2,
+    padding:8,
     borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
   },

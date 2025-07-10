@@ -141,6 +141,13 @@ export default function WelcomeScreen() {
         onLoad={() => setIsReady(true)}
       />
       
+      {/* Blur overlay on top of the video */}
+      <BlurView
+        style={styles.video}
+        intensity={40}
+        tint="dark"
+      />
+      
       {/* Gradient overlay */}
       <LinearGradient
         colors={['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
@@ -193,7 +200,7 @@ export default function WelcomeScreen() {
         
         {/* Blur Swipe Button */}
         <View style={[styles.swipeContainer, { width: swipeWidth }]}>
-          <BlurView intensity={20} tint="light" style={styles.blurBackground}>
+          <BlurView intensity={30} tint="light" style={styles.blurBackground}>
             <Animated.Text 
               style={[
                 styles.swipeText,
