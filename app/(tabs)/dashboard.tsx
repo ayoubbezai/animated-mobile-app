@@ -8,28 +8,35 @@ import {
   Animated,
   Easing,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler, ScrollView, State } from 'react-native-gesture-handler';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 const primary = "#F78F2A";
 const accent = "#FF5E5B";
 
+// Sample data for the line graph
+const monthlyData = [20, 35, 28, 42, 30, 25, 18, 22, 38, 45, 32, 40];
+const maxValue = Math.max(...monthlyData);
+const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
 export default function StudentDashboard() {
   const videoRef = useRef<Video>(null);
   const [currentTime, setCurrentTime] = useState('Morning');
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
+  const [isBlurred, setIsBlurred] = useState(false);
 
   // Animation values
-  const maxTranslate = 0; // Fully expanded
-  const minTranslate = height * 0.62; // Collapsed position (62% of screen height)
+  const maxTranslate = 0; 
+  const minTranslate = height * 0.62;
   const dragY = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(minTranslate)).current;
   const lastOffset = useRef(minTranslate);
@@ -38,6 +45,10 @@ export default function StudentDashboard() {
     const hour = new Date().getHours();
     setCurrentTime(hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening');
   }, []);
+
+  const toggleBlur = () => {
+    setIsBlurred(!isBlurred);
+  };
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationY: dragY } }],
@@ -50,27 +61,21 @@ export default function StudentDashboard() {
       
       let toValue;
       if (totalTranslate < minTranslate * 0.5) {
-        // Snap to expanded position if dragged above threshold
         toValue = maxTranslate;
         setIsExpanded(true);
         setScrollEnabled(true);
-        scrollViewRef.current?.scrollTo({ y: 18, animated: false });
       } else {
-        // Snap to collapsed position
         toValue = minTranslate;
         setIsExpanded(false);
         setScrollEnabled(false);
       }
 
-      // Clamp the value between min and max
       toValue = Math.max(maxTranslate, Math.min(minTranslate, toValue));
 
-      // Update animation values
       translateY.setValue(totalTranslate);
       dragY.setValue(0);
       lastOffset.current = toValue;
 
-      // Animate to final position
       Animated.timing(translateY, {
         toValue,
         duration: 300,
@@ -80,19 +85,35 @@ export default function StudentDashboard() {
     }
   };
 
-  // Interpolate modal position
   const modalTranslate = Animated.add(translateY, dragY).interpolate({
     inputRange: [maxTranslate, minTranslate],
     outputRange: [maxTranslate, minTranslate],
     extrapolate: 'clamp',
   });
 
-  // Interpolate video opacity based on modal position
   const videoOpacity = modalTranslate.interpolate({
     inputRange: [maxTranslate, minTranslate],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+
+  const generateLinePath = () => {
+    const graphHeight = 80;
+    const graphWidth = width - 60;
+    const pointDistance = graphWidth / (monthlyData.length - 1);
+    
+    let path = `M 30 ${graphHeight - (monthlyData[0] / maxValue) * graphHeight}`;
+    
+    monthlyData.forEach((value, index) => {
+      if (index > 0) {
+        const x = 30 + (index * pointDistance);
+        const y = graphHeight - (value / maxValue) * graphHeight;
+        path += ` L ${x} ${y}`;
+      }
+    });
+    
+    return path;
+  };
 
   return (
     <View style={styles.root}>
@@ -110,6 +131,13 @@ export default function StudentDashboard() {
             isMuted
             style={styles.videoBackground}
           />
+          {isBlurred && (
+            <BlurView
+              style={styles.videoBlur}
+              intensity={20}
+              tint="dark"
+            />
+          )}
         </Animated.View>
 
         {/* Gradient Overlay */}
@@ -117,6 +145,22 @@ export default function StudentDashboard() {
           colors={['rgba(18,18,18,0.8)', 'rgba(247,143,42,0.3)', 'rgba(18,18,18,0.8)']}
           style={styles.gradientOverlay}
         />
+
+        {/* Centered Logo and Tagline */}
+        <Animated.View style={[styles.heroLogoContainer, { opacity: videoOpacity }]}> 
+          <BlurView intensity={30} tint="light" style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/Group 1000004492.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </BlurView>
+          <View style={styles.brandContainer}>
+            <Text style={styles.brandWE}>WE</Text>
+            <Text style={styles.brandXPLAIN}>XPLAIN</Text>
+          </View>
+          <Text style={styles.heroTagline}>Empowering your learning journey</Text>
+        </Animated.View>
 
         {/* Top Bar */}
         <BlurView intensity={40} tint="dark" style={styles.topBar}>
@@ -139,16 +183,13 @@ export default function StudentDashboard() {
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
         onHandlerStateChange={onHandlerStateChange}
-        activeOffsetY={[0 , 1]}
+        activeOffsetY={[0, 1]}
       >
         <Animated.View style={[
           styles.modalCard,
           { transform: [{ translateY: modalTranslate }] },
         ]}>
-          {/* Modal Handle */}
           <View style={styles.modalHandle} />
-          
-          {/* Scrollable Content */}
           <ScrollView
             ref={scrollViewRef}
             style={styles.modalScrollContent}
@@ -156,17 +197,6 @@ export default function StudentDashboard() {
             scrollEventThrottle={16}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={e => {
-              const y = e.nativeEvent.contentOffset.y;
-              setScrollY(y);
-              if (isExpanded) {
-                if (y <= 0 && scrollEnabled) {
-                  setScrollEnabled(false);
-                } else if (y > 0 && !scrollEnabled) {
-                  setScrollEnabled(true);
-                }
-              }
-            }}
           >
             {/* Stats Section */}
             <Text style={styles.sectionTitle}>Study Overview</Text>
@@ -194,7 +224,7 @@ export default function StudentDashboard() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="wallet-outline" size={20} color={primary} />
                 </View>
-                <Text style={styles.statNumber}>$240</Text>
+                <Text style={styles.statNumber}>2400DA</Text>
                 <Text style={styles.statLabel}>Payments</Text>
               </View>
             </View>
@@ -218,24 +248,24 @@ export default function StudentDashboard() {
               {[
                 {
                   subject: 'Mathematics',
-                  date: 'May 12, 2023',
+                  date: 'May 12, 2025',
                   description: 'Covered Algebra basics and quadratic equations with practice problems.',
                   hours: '2.5 hours',
-                  price: '$30'
+                  price: '1200 DA'
                 },
                 {
                   subject: 'Physics',
-                  date: 'May 10, 2023',
+                  date: 'May 10, 2025',
                   description: 'Newtonian mechanics with focus on kinematics and dynamics.',
                   hours: '2 hours',
-                  price: '$25'
+                  price: '2500 DA'
                 },
                 {
                   subject: 'Chemistry',
-                  date: 'May 8, 2023',
+                  date: 'May 8, 2025',
                   description: 'Chemical bonding and molecular structure with examples.',
                   hours: '1.5 hours',
-                  price: '$20'
+                  price: '2000 DA'
                 }
               ].map((session, index) => (
                 <View key={index} style={styles.sessionCard}>
@@ -297,10 +327,59 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  videoBlur: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
   gradientOverlay: {
     position: 'absolute',
     width: '100%',
     height: '100%',
+  },
+  videoGraphContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    zIndex: 5,
+  },
+  monthlyGraph: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 12,
+    padding: 12,
+    paddingBottom: 15,
+  },
+  graphHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  monthlyGraphTitle: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  blurButton: {
+    padding: 5,
+  },
+  lineGraphContainer: {
+    height: 100,
+    width: '100%',
+  },
+  monthLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 25,
+    marginTop: 5,
+  },
+  monthLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10,
+    width: 20,
+    textAlign: 'center',
   },
   topBar: {
     position: 'absolute',
@@ -527,5 +606,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+  },
+  heroLogoContainer: {
+    position: 'absolute',
+    top: height * 0.22, // Adjust as needed
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  logoContainer: {
+    width: width * 0.3, // Adjust as needed
+    height: width * 0.3, // Adjust as needed
+    marginBottom: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  brandContainer: {
+    flexDirection: 'row',
+    marginBottom: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandWE: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: primary,
+    marginRight: 2,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  brandXPLAIN: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  heroTagline: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: 5,
   },
 });
