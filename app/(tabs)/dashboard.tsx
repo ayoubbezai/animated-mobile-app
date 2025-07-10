@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler, ScrollView, State } from 'react-native-gesture-handler';
+import BottomTabBar from '../../components/BottomTabBar';
 
 const { width, height } = Dimensions.get('window');
 const primary = "#F78F2A";
@@ -436,24 +437,7 @@ export default function StudentDashboard() {
       </PanGestureHandler>
 
       {/* Bottom Navigation Tab */}
-      <View style={styles.bottomTab}>
-        <View style={styles.tabItem}>
-          <Ionicons name="home" size={20} color={primary} />
-          <Text style={[styles.tabText, { color: primary }]}>Home</Text>
-        </View>
-        <View style={styles.tabItem}>
-          <Ionicons name="calendar" size={20} color="#999" />
-        </View>
-        <View style={styles.tabItem}>
-          <Ionicons name="wallet" size={20} color="#999" />
-        </View>
-        <View style={styles.tabItem}>
-          <Ionicons name="notifications" size={20} color="#999" />
-        </View>
-        <View style={styles.tabItem}>
-          <Ionicons name="person" size={20} color="#999" />
-        </View>
-      </View>
+      <BottomTabBar />
     </View>
   );
 }
@@ -617,7 +601,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 50,
-    paddingTop:18,
+    paddingTop:0,
   },
   bottomTab: {
     position: 'absolute',

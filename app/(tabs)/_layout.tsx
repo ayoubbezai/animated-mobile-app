@@ -12,14 +12,15 @@ export default function TabLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        animation: 'none', // Disable page transition animations
       }}
     >
-      <Stack.Screen 
-        name="welcome" 
-      />
-      <Stack.Screen 
-        name="dashboard" 
-      />
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="dashboard" />
+      <Stack.Screen name="sessions" />
+      <Stack.Screen name="wallet" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="profile" />
     </Stack>
   );
 }
