@@ -22,13 +22,14 @@ const accent = "#FF5E5B";
 export default function StudentDashboard() {
   const videoRef = useRef<Video>(null);
   const [currentTime, setCurrentTime] = useState('Morning');
-  const scrollViewRef = useRef(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
 
-  // Constants
-  const maxTranslate = 0; 
-  const minTranslate = height * 0.62;
-
+  // Animation values
+  const maxTranslate = 0; // Fully expanded
+  const minTranslate = height * 0.62; // Collapsed position (62% of screen height)
   const dragY = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(minTranslate)).current;
   const lastOffset = useRef(minTranslate);
@@ -49,19 +50,27 @@ export default function StudentDashboard() {
       
       let toValue;
       if (totalTranslate < minTranslate * 0.5) {
-        toValue = maxTranslate; // Expanded
+        // Snap to expanded position if dragged above threshold
+        toValue = maxTranslate;
         setIsExpanded(true);
+        setScrollEnabled(true);
+        scrollViewRef.current?.scrollTo({ y: 18, animated: false });
       } else {
-        toValue = minTranslate; // Collapsed
+        // Snap to collapsed position
+        toValue = minTranslate;
         setIsExpanded(false);
+        setScrollEnabled(false);
       }
 
+      // Clamp the value between min and max
       toValue = Math.max(maxTranslate, Math.min(minTranslate, toValue));
 
+      // Update animation values
       translateY.setValue(totalTranslate);
       dragY.setValue(0);
       lastOffset.current = toValue;
 
+      // Animate to final position
       Animated.timing(translateY, {
         toValue,
         duration: 300,
@@ -71,24 +80,19 @@ export default function StudentDashboard() {
     }
   };
 
+  // Interpolate modal position
   const modalTranslate = Animated.add(translateY, dragY).interpolate({
     inputRange: [maxTranslate, minTranslate],
     outputRange: [maxTranslate, minTranslate],
     extrapolate: 'clamp',
   });
 
+  // Interpolate video opacity based on modal position
   const videoOpacity = modalTranslate.interpolate({
     inputRange: [maxTranslate, minTranslate],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-
-  // Handle scroll enabling/disabling based on modal state
-  const handleScroll = (e) => {
-    if (!isExpanded && e.nativeEvent.contentOffset.y <= 0) {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-    }
-  };
 
   return (
     <View style={styles.root}>
@@ -108,6 +112,7 @@ export default function StudentDashboard() {
           />
         </Animated.View>
 
+        {/* Gradient Overlay */}
         <LinearGradient
           colors={['rgba(18,18,18,0.8)', 'rgba(247,143,42,0.3)', 'rgba(18,18,18,0.8)']}
           style={styles.gradientOverlay}
@@ -134,21 +139,34 @@ export default function StudentDashboard() {
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
         onHandlerStateChange={onHandlerStateChange}
-        activeOffsetY={[-10, 10]}
+        activeOffsetY={[0 , 1]}
       >
         <Animated.View style={[
           styles.modalCard,
           { transform: [{ translateY: modalTranslate }] },
         ]}>
+          {/* Modal Handle */}
           <View style={styles.modalHandle} />
+          
+          {/* Scrollable Content */}
           <ScrollView
             ref={scrollViewRef}
             style={styles.modalScrollContent}
-            scrollEnabled={isExpanded}
-            onScroll={handleScroll}
+            scrollEnabled={scrollEnabled}
             scrollEventThrottle={16}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            onScroll={e => {
+              const y = e.nativeEvent.contentOffset.y;
+              setScrollY(y);
+              if (isExpanded) {
+                if (y <= 0 && scrollEnabled) {
+                  setScrollEnabled(false);
+                } else if (y > 0 && !scrollEnabled) {
+                  setScrollEnabled(true);
+                }
+              }
+            }}
           >
             {/* Stats Section */}
             <Text style={styles.sectionTitle}>Study Overview</Text>
@@ -262,7 +280,6 @@ export default function StudentDashboard() {
   );
 }
 
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -346,7 +363,7 @@ const styles = StyleSheet.create({
     top:0,
     left: 0,
     right: 0,
-    height: height, // Full screen height
+    height: height,
     backgroundColor: 'white',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -364,11 +381,14 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 12,
+    marginBottom: 10,
   },
   modalScrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 100, // Extra space for bottom tab
+  },
+  scrollContent: {
+    paddingBottom: 50,
+    paddingTop:18,
   },
   bottomTab: {
     position: 'absolute',
@@ -466,7 +486,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   sessionsContainer: {
-    marginBottom: 80, // Space for bottom tab
+    marginBottom: 80,
   },
   sessionCard: {
     backgroundColor: '#f8f8f8',
