@@ -15,10 +15,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler, ScrollView, State } from 'react-native-gesture-handler';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 const primary = "#F78F2A";
 const accent = "#FF5E5B";
+
+// Sample data for the line graph
+const monthlyData = [20, 35, 28, 42, 30, 25, 18, 22, 38, 45, 32, 40];
+const maxValue = Math.max(...monthlyData);
+const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 export default function StudentDashboard() {
   const videoRef = useRef<Video>(null);
@@ -26,11 +32,10 @@ export default function StudentDashboard() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
   const [isBlurred, setIsBlurred] = useState(false);
 
   // Animation values
-  const maxTranslate = 0;
+  const maxTranslate = 0; 
   const minTranslate = height * 0.62;
   const dragY = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(minTranslate)).current;
@@ -59,11 +64,12 @@ export default function StudentDashboard() {
         toValue = maxTranslate;
         setIsExpanded(true);
         setScrollEnabled(true);
-        scrollViewRef.current?.scrollTo({ y: 18, animated: false });
-      } else {
+        
+    } else {
         toValue = minTranslate;
         setIsExpanded(false);
         setScrollEnabled(false);
+        scrollViewRef.current?.scrollTo({ y: 18, animated: false });
       }
 
       toValue = Math.max(maxTranslate, Math.min(minTranslate, toValue));
@@ -92,6 +98,24 @@ export default function StudentDashboard() {
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+
+  const generateLinePath = () => {
+    const graphHeight = 80;
+    const graphWidth = width - 60;
+    const pointDistance = graphWidth / (monthlyData.length - 1);
+    
+    let path = `M 30 ${graphHeight - (monthlyData[0] / maxValue) * graphHeight}`;
+    
+    monthlyData.forEach((value, index) => {
+      if (index > 0) {
+        const x = 30 + (index * pointDistance);
+        const y = graphHeight - (value / maxValue) * graphHeight;
+        path += ` L ${x} ${y}`;
+      }
+    });
+    
+    return path;
+  };
 
   return (
     <View style={styles.root}>
@@ -124,7 +148,8 @@ export default function StudentDashboard() {
           style={styles.gradientOverlay}
         />
 
-<Animated.View style={[styles.heroLogoContainer, { opacity: videoOpacity }]}> 
+        {/* Centered Logo and Tagline */}
+        <Animated.View style={[styles.heroLogoContainer, { opacity: videoOpacity }]}> 
           <BlurView intensity={30} tint="light" style={styles.logoContainer}>
             <Image
               source={require('../../assets/images/Group 1000004492.png')}
@@ -172,7 +197,7 @@ export default function StudentDashboard() {
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
         onHandlerStateChange={onHandlerStateChange}
-        activeOffsetY={[0 , 1]}
+        activeOffsetY={[0, 1]}
       >
         <Animated.View style={[
           styles.modalCard,
@@ -186,17 +211,6 @@ export default function StudentDashboard() {
             scrollEventThrottle={16}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={e => {
-              const y = e.nativeEvent.contentOffset.y;
-              setScrollY(y);
-              if (isExpanded) {
-                if (y <= 0 && scrollEnabled) {
-                  setScrollEnabled(false);
-                } else if (y > 0 && !scrollEnabled) {
-                  setScrollEnabled(true);
-                }
-              }
-            }}
           >
             {/* Stats Section */}
             <Text style={styles.sectionTitle}>Study Overview</Text>
@@ -224,7 +238,7 @@ export default function StudentDashboard() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="wallet-outline" size={20} color={primary} />
                 </View>
-                <Text style={styles.statNumber}>9400DA</Text>
+                <Text style={styles.statNumber}>2400DA</Text>
                 <Text style={styles.statLabel}>Payments</Text>
               </View>
             </View>
@@ -248,21 +262,21 @@ export default function StudentDashboard() {
               {[
                 {
                   subject: 'Mathematics',
-                  date: 'May 12, 2023',
+                  date: 'May 12, 2025',
                   description: 'Covered Algebra basics and quadratic equations with practice problems.',
                   hours: '2.5 hours',
-                  price: '3000 DA'
+                  price: '1200 DA'
                 },
                 {
                   subject: 'Physics',
-                  date: 'May 10, 2023',
+                  date: 'May 10, 2025',
                   description: 'Newtonian mechanics with focus on kinematics and dynamics.',
                   hours: '2 hours',
                   price: '2500 DA'
                 },
                 {
                   subject: 'Chemistry',
-                  date: 'May 8, 2023',
+                  date: 'May 8, 2025',
                   description: 'Chemical bonding and molecular structure with examples.',
                   hours: '1.5 hours',
                   price: '2000 DA'
@@ -306,6 +320,13 @@ export default function StudentDashboard() {
           <Ionicons name="person" size={20} color="#999" />
         </View>
       </View>
+
+      {/* Add extra blur to video when modal is expanded */}
+      <Animated.View style={{ opacity: videoOpacity, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 }} pointerEvents="none">
+        {isExpanded && (
+          <BlurView intensity={30} tint="dark" style={{ flex: 1, width: '100%', height: '100%' }} />
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -339,7 +360,7 @@ const styles = StyleSheet.create({
   },
   videoGraphContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 100,
     left: 0,
     right: 0,
     paddingHorizontal: 20,
@@ -349,6 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 12,
     padding: 12,
+    paddingBottom: 15,
   },
   graphHeader: {
     flexDirection: 'row',
@@ -364,24 +386,21 @@ const styles = StyleSheet.create({
   blurButton: {
     padding: 5,
   },
-  monthlyGraphBars: {
+  lineGraphContainer: {
+    height: 100,
+    width: '100%',
+  },
+  monthLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 80,
+    paddingHorizontal: 25,
+    marginTop: 5,
   },
-  monthlyGraphBarContainer: {
-    alignItems: 'center',
-    width: '7%',
-  },
-  monthlyGraphBar: {
-    width: '100%',
-    borderRadius: 3,
-    marginBottom: 5,
-  },
-  monthlyGraphLabel: {
+  monthLabel: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 10,
+    width: 20,
+    textAlign: 'center',
   },
   topBar: {
     position: 'absolute',
@@ -401,11 +420,11 @@ const styles = StyleSheet.create({
   },
   greetingText: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
+    fontSize: 14,
   },
   nameText: {
     color: 'white',
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '500',
   },
   topBarRight: {
@@ -480,7 +499,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 1,
     paddingBottom: 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
@@ -608,7 +627,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
-  },heroLogoContainer: {
+  },
+  heroLogoContainer: {
     position: 'absolute',
     top: height * 0.22, // Adjust as needed
     left: 0,
